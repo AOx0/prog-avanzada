@@ -5,13 +5,55 @@
   permitir votar y finalmente dar un ganador.
  */
 #include <iostream>
+#include <utility>
+
+#define CANDIDATOS 5
+
+using namespace std;
+
+// Para facilitar la vida almaceno el string en esta estructura
+struct Nombre {
+public:
+  string nombre;
+
+  explicit Nombre(string nombre) : nombre(std::move(nombre)){};
+};
+
+void mostrar_candidatos(void ** matriz, bool mostrar_votos = false, bool indent = false, int filtrar = -1) {
+
+  int j = 1;
+  for (int i=0; i<CANDIDATOS; i++) {
+    int * votos = (int *)(matriz[2 * i + 0]);
+    Nombre * nombre = (Nombre *)matriz[2 * i + 1];
+
+    if (filtrar != -1 && *votos != filtrar)  continue;
+
+    std::cout << (indent ? "    " : "") << j << ". " << nombre->nombre;
+
+    if (mostrar_votos) {
+      std::cout << "  --  Votos: " << *votos;
+    }
+
+    std::cout << "\n";
+    j++;
+  }
+}
+
 
 int main(){
 
-  const int TM = 5;
+  int grande = 0, ganadores = 1;
+  void * arreglo_apuntadores[CANDIDATOS][2] = {};
+  const std::string candidatos[CANDIDATOS] = {"Pepe G", "Pedro F", "Alejandro H", "Sara W", "David L"};
 
-  int votos_empate[TM] = {0,0,0,0,0};
-  std::string candidatos[TM] = {"Pepe G", "Pedro F", "Alejandro H","Sara W", "David L"};
+  for (int i=0; i<CANDIDATOS; i++) {
+    arreglo_apuntadores[i][0] = calloc(1, sizeof(uint32_t /*(unsigned int)*/));
+    *(int *)(arreglo_apuntadores[i][0]) = 0;
+
+    arreglo_apuntadores[i][1] = calloc(1, sizeof(Nombre));
+    *(Nombre *)(arreglo_apuntadores[i][1]) = Nombre(candidatos[i]);
+  }
+
   std::cout << "Para terminar de capturar datos ingresa el número 0 en lugar de un voto\n";
 
   while (true) {
@@ -20,13 +62,13 @@ int main(){
     bool valido = false;
 
     std::cout << "Ingresa tu voto. Candidatos:\n";
-    for (int i=0; i<TM; i++) std::cout << "    " << i+1 << ". " << candidatos[i] << "\n";
+    mostrar_candidatos(arreglo_apuntadores[0], false, true);
 
     do {
       std::cout << "Ingresa tu elección: ";
       std::cin >> voto;
 
-      if (voto < 0 || voto>TM) std::cout << "Voto inválido, vuelva a tratar.\n";
+      if (voto < 0 || voto > CANDIDATOS) std::cout << "Voto inválido, vuelva a tratar.\n";
       else valido = true;
 
     } while (!valido);
@@ -38,25 +80,27 @@ int main(){
 #endif
 
     if (voto == 0) break;
-    votos_empate[voto-1]++;
-  }
+    int * elegido = (int *)(arreglo_apuntadores)[0][(voto-1) * 2 + 0];
+    *elegido += 1;
 
-  int grande = 0, ganadores = 1;
-  std::cout << "Resultados:\n";
-  for (int i=0; i<TM; i++) {
-    if ( votos_empate[i] > grande) {
+    if (*elegido > grande) {
       ganadores = 1;
-      grande = votos_empate[i];
-    }
-
-    else if (grande == votos_empate[i]) ganadores++;
-    std::cout << "    " << candidatos[i] << ": " << votos_empate[i] << "\n";
+      grande = *elegido;
+    } else if (grande == *elegido) ganadores++;
   }
 
-  if (ganadores != 1) std::cout << "Empate entre " << ganadores << " personas con "<< grande << " votos:\n";
+  std::cout << "Resultados:\n";
+  mostrar_candidatos(arreglo_apuntadores[0], true, true);
+
+
+  if (ganadores != 1) std::cout << "\nEmpate entre " << ganadores << " personas con "<< grande << " votos:\n";
   else std::cout << "Tenemos un ganador con "<< grande << " votos:\n";
 
-  for (int i=0; i<TM; i++)
-    if (votos_empate[i] == grande)
-      std::cout <<  candidatos[i] << "\n";
+  mostrar_candidatos(arreglo_apuntadores[0], false, true, grande);
+
+  // Limpiamos la memoria usada.
+  for (int i=0; i<CANDIDATOS; i++) {
+    free(arreglo_apuntadores[i][0]);
+    free(arreglo_apuntadores[i][1]);
+  }
 }
